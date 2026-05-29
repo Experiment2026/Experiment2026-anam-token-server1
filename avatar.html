@@ -60,12 +60,22 @@
 }
     
     #input {
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      box-sizing: border-box;
-      resize: none;
-    }
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  box-sizing: border-box;
+  resize: none;
+
+  background: #e0e0e0;
+  color: #888;
+  border: 1px solid #ccc;
+}
+
+    #input:disabled {
+  background: #e0e0e0;
+  color: #888;
+  cursor: not-allowed;
+}
   </style>
 </head>
 
@@ -86,7 +96,12 @@
   </button>
 </div>
 
-     <textarea id="input" placeholder="Type your message here..." rows="4"></textarea>
+     <textarea
+  id="input"
+  placeholder="Type your message here..."
+  rows="4"
+  disabled
+></textarea>
     </div>
   </div>
 
@@ -292,7 +307,13 @@ startBtn.addEventListener("click", async () => {
 
     chatbox.style.background = "white";
 
+    inputEl.disabled = false;
+    inputEl.style.background = "white";
+    inputEl.style.color = "#222";
+
     await startSession();
+
+    inputEl.focus();
 
   } catch (error) {
 

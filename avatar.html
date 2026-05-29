@@ -43,6 +43,7 @@
       padding: 12px;
       font-size: 16px;
       box-sizing: border-box;
+      resize: none;
     }
   </style>
 </head>
@@ -61,27 +62,25 @@
       <div id="chatbox"></div>
 
       <textarea
-  id="input"
-  placeholder="Type your message here..."
-  rows="4"
-  style="
-    width:100%;
-    padding:12px;
-    font-size:16px;
-    box-sizing:border-box;
-    resize:none;
-  "
-></textarea>
+        id="input"
+        placeholder="Type your message here..."
+        rows="4">
+      </textarea>
     </div>
   </div>
 
   <script type="module">
     import { createClient, AnamEvent } from "https://esm.sh/@anam-ai/js-sdk";
 
+    const CONDITION = "text_hidden_avatar";
+
     let client = null;
     let assistantBuffer = "";
     let assistantRow = null;
     let assistantText = null;
+    let transcript = [];
+    let participantId = "unknown";
+    let firstUserMessage = true;
 
     const statusEl = document.getElementById("status");
     const chatbox = document.getElementById("chatbox");
@@ -96,6 +95,19 @@
       p.innerHTML = `<b>You:</b> ${text}`;
       chatbox.appendChild(p);
       chatbox.scrollTop = chatbox.scrollHeight;
+
+      transcript.push({
+        role: "user",
+        content: text,
+        timestamp: new Date().toISOString()
+      });
+
+      if (firstUserMessage) {
+        const match = text.match(/P?\d+/i);
+        participantId = match ? match[0] : text.trim();
+        firstUserMessage = false;
+        console.log("Participant ID detected:", participantId);
+      }
     }
 
     function beginAssistantMessage() {
@@ -122,6 +134,51 @@
       assistantBuffer += chunk || "";
       assistantText.textContent = assistantBuffer;
       chatbox.scrollTop = chatbox.scrollHeight;
+    }
+
+    async function saveTranscript() {
+      try {
+        const response = await fetch(
+          "https://anam-token-server-1.onrender.com/api/save-transcript",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              participantId: participantId,
+              condition: CONDITION,
+              transcript: transcript
+            })
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to save transcript");
+        }
+
+        console.log("Transcript auto-saved:", data);
+      } catch (error) {
+        console.error("Auto-save failed:", error);
+      }
+    }
+
+    async function finishAssistantMessage() {
+      if (assistantBuffer.trim()) {
+        transcript.push({
+          role: "assistant",
+          content: assistantBuffer.trim(),
+          timestamp: new Date().toISOString()
+        });
+
+        await saveTranscript();
+      }
+
+      assistantBuffer = "";
+      assistantRow = null;
+      assistantText = null;
     }
 
     function resetAssistantMessage() {
@@ -151,12 +208,12 @@
 
         client.addListener(
           AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
-          (event) => {
+          async (event) => {
             if (event.role === "persona") {
               updateAssistantMessage(event.content);
 
               if (event.endOfSpeech) {
-                resetAssistantMessage();
+                await finishAssistantMessage();
               }
             }
           }
@@ -198,7 +255,7 @@
     }
 
     inputEl.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
+      if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
         sendMessage();
       }

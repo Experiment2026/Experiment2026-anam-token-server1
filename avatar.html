@@ -32,8 +32,7 @@
     const statusEl = document.getElementById("status");
     const chatbox = document.getElementById("chatbox");
     const inputEl = document.getElementById("input");
-    const sendBtn = document.getElementById("sendBtn");
-
+    
     function setStatus(text) {
       statusEl.textContent = text;
     }
@@ -149,8 +148,7 @@
     }
 
     // Send button
-    sendBtn.addEventListener("click", sendMessage);
-
+    
     // Press Enter to send
     inputEl.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {

@@ -94,7 +94,9 @@
           throw new Error(data.error || "Failed to get session token");
         }
 
-        client = createClient(data.sessionToken);
+        client = createClient(data.sessionToken, {
+  disableInputAudio: true
+});
 
         client.addListener(
           AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,

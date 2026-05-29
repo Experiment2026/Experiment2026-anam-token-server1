@@ -88,12 +88,36 @@ app.post("/api/save-transcript", (req, res) => {
   }
 });
 
+// List transcript files
 app.get("/api/transcripts", (req, res) => {
   try {
     const files = fs.readdirSync(transcriptsDir);
     res.json(files);
   } catch (error) {
     res.status(500).json({ error: "Failed to list transcripts." });
+  }
+});
+
+// View/download one transcript file
+app.get("/api/transcripts/:filename", (req, res) => {
+  try {
+    const filename = req.params.filename;
+
+    // Basic safety check
+    if (!filename.endsWith(".json") || filename.includes("..") || filename.includes("/")) {
+      return res.status(400).json({ error: "Invalid filename." });
+    }
+
+    const filepath = path.join(transcriptsDir, filename);
+
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).json({ error: "File not found." });
+    }
+
+    res.sendFile(filepath);
+  } catch (error) {
+    console.error("Read transcript error:", error);
+    res.status(500).json({ error: "Failed to read transcript." });
   }
 });
 

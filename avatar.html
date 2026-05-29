@@ -19,7 +19,10 @@
        style="height:300px; overflow-y:auto; border:1px solid #ccc; padding:10px; margin-bottom:10px;">
   </div>
 
-  <input id="input" placeholder="Type here..." style="width:300px;" />
+  <textarea id="input"
+          placeholder="Type your message here..."
+          rows="2"
+          style="width:800px; padding:12px; font-size:16px; resize:none;"></textarea>
   
   <script type="module">
     import { createClient, AnamEvent } from "https://esm.sh/@anam-ai/js-sdk";

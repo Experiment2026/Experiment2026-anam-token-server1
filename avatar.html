@@ -3,20 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Avatar Condition</title>
+  <title>Chat Assistant</title>
 </head>
 <body>
   <h2>Chat Assistant</h2>
 
+  <!-- Hidden avatar -->
   <video id="avatar" autoplay playsinline
     style="position:absolute; left:-9999px; width:1px; height:1px;">
   </video>
 
-  <div id="status">Not connected</div>
-  <div id="chatbox" style="height:300px; overflow-y:auto; border:1px solid #ccc; padding:10px;"></div>
+  <div id="status">Connecting...</div>
 
-  <input id="input" placeholder="Type here..." />
-  <button id="startBtn">Start</button>
+  <div id="chatbox"
+       style="height:300px; overflow-y:auto; border:1px solid #ccc; padding:10px; margin-bottom:10px;">
+  </div>
+
+  <input id="input" placeholder="Type here..." style="width:300px;" />
   <button id="sendBtn">Send</button>
 
   <script type="module">
@@ -30,7 +33,6 @@
     const statusEl = document.getElementById("status");
     const chatbox = document.getElementById("chatbox");
     const inputEl = document.getElementById("input");
-    const startBtn = document.getElementById("startBtn");
     const sendBtn = document.getElementById("sendBtn");
 
     function setStatus(text) {
@@ -55,6 +57,7 @@
 
       assistantRow.appendChild(label);
       assistantRow.appendChild(assistantText);
+
       chatbox.appendChild(assistantRow);
       chatbox.scrollTop = chatbox.scrollHeight;
     }
@@ -66,6 +69,7 @@
 
       assistantBuffer += chunk || "";
       assistantText.textContent = assistantBuffer;
+
       chatbox.scrollTop = chatbox.scrollHeight;
     }
 
@@ -75,13 +79,16 @@
       assistantText = null;
     }
 
-    startBtn.addEventListener("click", async () => {
+    async function startSession() {
       try {
         setStatus("Creating session...");
 
-        const response = await fetch("https://anam-token-server-1.onrender.com/api/session-token", {
-          method: "POST"
-        });
+        const response = await fetch(
+          "https://anam-token-server-1.onrender.com/api/session-token",
+          {
+            method: "POST"
+          }
+        );
 
         const data = await response.json();
 
@@ -91,48 +98,70 @@
 
         client = createClient(data.sessionToken);
 
-        client.addListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, (event) => {
-          console.log("Event object:", JSON.stringify(event));
+        client.addListener(
+          AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
+          (event) => {
+            console.log("Event object:", event);
 
-          if (event.role === "persona") {
-            updateAssistantMessage(event.content);
+            if (event.role === "persona") {
+              updateAssistantMessage(event.content);
 
-            if (event.endOfSpeech) {
-              resetAssistantMessage();
+              if (event.endOfSpeech) {
+                resetAssistantMessage();
+              }
             }
           }
-        });
+        );
 
         setStatus("Connecting...");
+
         await client.streamToVideoElement("avatar");
+
         setStatus("Connected");
       } catch (error) {
         console.error(error);
         setStatus("Error: " + error.message);
       }
-    });
+    }
 
-    sendBtn.addEventListener("click", async () => {
+    async function sendMessage() {
       try {
         if (!client) {
-          setStatus("Start the session first");
+          setStatus("Still connecting...");
           return;
         }
 
         const text = inputEl.value.trim();
+
         if (!text) return;
 
         appendUserMessage(text);
+
         inputEl.value = "";
 
         resetAssistantMessage();
 
         await client.sendUserMessage(text);
+
       } catch (error) {
         console.error(error);
         setStatus("Send error: " + error.message);
       }
+    }
+
+    // Send button
+    sendBtn.addEventListener("click", sendMessage);
+
+    // Press Enter to send
+    inputEl.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        sendMessage();
+      }
     });
+
+    // Start automatically
+    startSession();
   </script>
 </body>
 </html>

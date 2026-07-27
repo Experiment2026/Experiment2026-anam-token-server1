@@ -294,6 +294,41 @@ const startBtn = document.getElementById("startBtn");
       }
     }
 
+    async function saveTranscript() {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/save-transcript`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          participantId,
+          condition: CONDITION,
+          studyVersion: STUDY_VERSION,
+          transcript
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || "Transcript save failed."
+      );
+    }
+
+    console.log("Transcript saved:", data);
+  } catch (error) {
+    console.error(
+      "Transcript autosave error:",
+      error
+    );
+  }
+}
+
     inputEl.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();

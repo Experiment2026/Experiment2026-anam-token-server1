@@ -31,6 +31,10 @@
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
     }
 
+    #status {
+      margin-bottom: 10px;
+    }
+
     #chatbox {
       position: relative;
       height: 600px;
@@ -97,10 +101,6 @@
     <div class="card">
       <h2>Chat Assistant</h2>
 
-      <!--
-        The avatar remains hidden and muted in this condition.
-        Anam still streams to the video element in the background.
-      -->
       <video
         id="avatar"
         autoplay
@@ -140,14 +140,14 @@
     } from "https://esm.sh/@anam-ai/js-sdk";
 
     /*
-      CONDITION 1:
+      Condition 1:
       Text interface + text input
     */
     const CONDITION =
       "interface_text_input_text";
 
     /*
-      All four GitHub Pages use this same backend.
+      Shared Render backend used by all four conditions.
     */
     const API_BASE_URL =
       "https://anam-token-server-1.onrender.com";
@@ -161,11 +161,10 @@
     let transcript = [];
 
     /*
-      The chatbot asks participants to enter the participant ID
-      they received in Qualtrics.
+      The participant receives their ID in Qualtrics.
 
-      Until the first participant response is received, no
-      transcript is saved.
+      The chatbot asks for that ID in its greeting, and the
+      participant enters it as their first message.
     */
     let participantId = null;
     let firstUserMessage = true;
@@ -189,55 +188,65 @@
       statusEl.textContent = text;
     }
 
-    /*
-      Extract the Qualtrics participant ID from the participant's
-      first response.
-
-      Participants should ideally paste only the ID. This function
-      also handles responses such as:
-
-      "My participant ID is P014"
-    */
     function extractParticipantId(text) {
-      const trimmedText = String(text).trim();
+      const trimmedText =
+        String(text).trim();
 
       if (!trimmedText) {
         return null;
       }
 
       /*
-        Find potential ID-like tokens containing letters, numbers,
-        underscores or hyphens.
-      */
-      const candidates =
-        trimmedText.match(/[A-Za-z0-9_-]+/g);
-
-      if (!candidates || candidates.length === 0) {
-        return null;
-      }
-
-      /*
-        Prefer the final token containing either a number,
-        underscore or hyphen. This supports IDs such as:
+        This supports participant IDs such as:
 
         P014
         participant-014
         R_ABC123XYZ
+
+        It also works if the participant writes:
+        "My participant ID is P014"
       */
-      const likelyIds = candidates.filter(
-        (candidate) =>
-          /[0-9_-]/.test(candidate)
-      );
+      const candidates =
+        trimmedText.match(
+          /[A-Za-z0-9_-]+/g
+        );
+
+      if (
+        !candidates ||
+        candidates.length === 0
+      ) {
+        return null;
+      }
+
+      /*
+        Prefer a token containing a number, underscore,
+        or hyphen because this is more likely to be an ID.
+      */
+      const likelyIds =
+        candidates.filter(
+          (candidate) =>
+            /[0-9_-]/.test(candidate)
+        );
 
       const selectedId =
         likelyIds.length > 0
-          ? likelyIds[likelyIds.length - 1]
-          : candidates[candidates.length - 1];
+          ? likelyIds[
+              likelyIds.length - 1
+            ]
+          : candidates[
+              candidates.length - 1
+            ];
 
-      return selectedId
-        .trim()
-        .replace(/[^A-Za-z0-9_-]/g, "")
-        .slice(0, 100);
+      const cleanedId =
+        selectedId
+          .trim()
+          .replace(
+            /[^A-Za-z0-9_-]/g,
+            ""
+          )
+          .slice(0, 100);
+
+      return cleanedId || null;
     }
 
     function appendUserMessage(text) {
@@ -258,18 +267,20 @@
       row.appendChild(messageText);
 
       chatbox.appendChild(row);
+
       chatbox.scrollTop =
         chatbox.scrollHeight;
 
       transcript.push({
         role: "user",
         content: text,
-        timestamp: new Date().toISOString()
+        timestamp:
+          new Date().toISOString()
       });
 
       /*
-        The first user message is expected to be the ID requested
-        by the chatbot in its greeting.
+        The participant's first response is expected to
+        contain their Qualtrics participant ID.
       */
       if (firstUserMessage) {
         participantId =
@@ -284,7 +295,7 @@
           );
         } else {
           console.warn(
-            "No participant ID could be detected."
+            "No participant ID could be detected from the first user message."
           );
         }
       }
@@ -297,7 +308,8 @@
       const label =
         document.createElement("b");
 
-      label.textContent = "Assistant: ";
+      label.textContent =
+        "Assistant: ";
 
       assistantText =
         document.createElement("span");
@@ -305,22 +317,31 @@
       assistantText.textContent = "";
 
       assistantRow.appendChild(label);
+
       assistantRow.appendChild(
         assistantText
       );
 
-      chatbox.appendChild(assistantRow);
+      chatbox.appendChild(
+        assistantRow
+      );
 
       chatbox.scrollTop =
         chatbox.scrollHeight;
     }
 
-    function updateAssistantMessage(chunk) {
-      if (!assistantRow || !assistantText) {
+    function updateAssistantMessage(
+      chunk
+    ) {
+      if (
+        !assistantRow ||
+        !assistantText
+      ) {
         beginAssistantMessage();
       }
 
-      assistantBuffer += chunk || "";
+      assistantBuffer +=
+        chunk || "";
 
       assistantText.textContent =
         assistantBuffer;
@@ -331,33 +352,41 @@
 
     async function saveTranscript() {
       /*
-        Do not store a transcript under "unknown".
+        Do not save the transcript until a participant ID
+        has been detected.
       */
       if (!participantId) {
         console.warn(
-          "Transcript not saved because a participant ID has not yet been detected."
+          "Transcript not saved because no participant ID has been detected."
         );
 
         return;
       }
 
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/save-transcript`,
-          {
-            method: "POST",
+        const response =
+          await fetch(
+            `${API_BASE_URL}/api/save-transcript`,
+            {
+              method: "POST",
 
-            headers: {
-              "Content-Type": "application/json"
-            },
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
 
-            body: JSON.stringify({
-              participantId,
-              condition: CONDITION,
-              transcript
-            })
-          }
-        );
+              body: JSON.stringify({
+                participantId:
+                  participantId,
+
+                condition:
+                  CONDITION,
+
+                transcript:
+                  transcript
+              })
+            }
+          );
 
         const data =
           await response.json();
@@ -380,7 +409,11 @@
         );
 
         setStatus(
-          "Connected, but transcript saving failed."
+          "Connected, but transcript saving failed: " +
+            (
+              error?.message ||
+              String(error)
+            )
         );
       }
     }
@@ -392,13 +425,14 @@
       if (completedMessage) {
         transcript.push({
           role: "assistant",
-          content: completedMessage,
+          content:
+            completedMessage,
           timestamp:
             new Date().toISOString()
         });
 
         /*
-          The entire transcript is saved after each complete
+          Save the complete transcript after every finished
           assistant response.
         */
         await saveTranscript();
@@ -417,40 +451,74 @@
 
     async function startSession() {
       try {
-        setStatus("Creating session...");
-
-        const response = await fetch(
-          `${API_BASE_URL}/api/session-token`,
-          {
-            method: "POST"
-          }
+        setStatus(
+          "Creating session..."
         );
 
-        const data =
-          await response.json();
+        const response =
+          await fetch(
+            `${API_BASE_URL}/api/session-token`,
+            {
+              method: "POST"
+            }
+          );
+
+        let data;
+
+        try {
+          data =
+            await response.json();
+        } catch (jsonError) {
+          throw new Error(
+            "The session-token endpoint returned an invalid response."
+          );
+        }
 
         if (!response.ok) {
+          console.error(
+            "Session-token response:",
+            data
+          );
+
           throw new Error(
             data.error ||
+              data.message ||
               "Failed to get session token."
           );
         }
 
+        if (!data.sessionToken) {
+          console.error(
+            "Session-token data:",
+            data
+          );
+
+          throw new Error(
+            "No session token was returned by the backend."
+          );
+        }
+
         /*
-          This condition uses typed input, so microphone input
-          is disabled.
+          Text-input condition:
+          microphone input is disabled.
         */
         client = createClient(
           data.sessionToken,
           {
-            disableInputAudio: true
+            disableInputAudio:
+              true
           }
         );
 
         client.addListener(
-          AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
+          AnamEvent
+            .MESSAGE_STREAM_EVENT_RECEIVED,
+
           async (event) => {
-            if (event.role !== "persona") {
+            if (
+              event.role !==
+              "persona"
+            ) {
               return;
             }
 
@@ -458,19 +526,25 @@
               event.content
             );
 
-            if (event.endOfSpeech) {
+            if (
+              event.endOfSpeech
+            ) {
               await finishAssistantMessage();
             }
           }
         );
 
-        await client.streamToVideoElement(
-          avatar
-        );
+        /*
+          The Anam SDK expects the HTML element ID.
+        */
+        await client
+          .streamToVideoElement(
+            "avatar"
+          );
 
         /*
-          The participant does not hear the avatar in this
-          text-interface condition.
+          The video is hidden and muted in the text-interface
+          condition.
         */
         avatar.muted = true;
         avatar.volume = 0;
@@ -483,7 +557,11 @@
         );
 
         setStatus(
-          "Error: " + error.message
+          "Failed to start session: " +
+            (
+              error?.message ||
+              String(error)
+            )
         );
 
         throw error;
@@ -513,9 +591,8 @@
 
         resetAssistantMessage();
 
-        await client.sendUserMessage(
-          text
-        );
+        await client
+          .sendUserMessage(text);
       } catch (error) {
         console.error(
           "Send-message error:",
@@ -524,7 +601,10 @@
 
         setStatus(
           "Send error: " +
-            error.message
+            (
+              error?.message ||
+              String(error)
+            )
         );
       }
     }
@@ -547,7 +627,8 @@
       "click",
       async () => {
         try {
-          startBtn.disabled = true;
+          startBtn.disabled =
+            true;
 
           startBtn.textContent =
             "Starting...";
@@ -560,7 +641,8 @@
           chatbox.style.background =
             "white";
 
-          inputEl.disabled = false;
+          inputEl.disabled =
+            false;
 
           inputEl.style.background =
             "white";
@@ -570,7 +652,13 @@
 
           inputEl.focus();
         } catch (error) {
-          startBtn.disabled = false;
+          console.error(
+            "Full start-session error:",
+            error
+          );
+
+          startBtn.disabled =
+            false;
 
           startBtn.textContent =
             "Start conversation";
@@ -581,10 +669,15 @@
           chatbox.style.background =
             "black";
 
-          inputEl.disabled = true;
+          inputEl.disabled =
+            true;
 
           setStatus(
-            "Failed to start session."
+            "Failed to start session: " +
+              (
+                error?.message ||
+                String(error)
+              )
           );
         }
       }

@@ -2,7 +2,12 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
   <title>Chat Assistant</title>
 
   <style>
@@ -23,62 +28,67 @@
       background: white;
       border-radius: 12px;
       padding: 24px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
     }
 
     #chatbox {
-  position: relative;
-  height: 600px;
-  width: 100%;
-  overflow-y: auto;
-  border: 1px solid #ddd;
-  border-radius: 12px;
-  padding: 20px;
-  background: black;
-  box-sizing: border-box;
-  margin-bottom: 20px;
-}
+      position: relative;
+      height: 600px;
+      width: 100%;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 20px;
+      background: black;
+      box-sizing: border-box;
+      margin-bottom: 20px;
+    }
 
     #startBtn {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 1000;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1000;
 
-  padding: 16px 32px;
-  font-size: 20px;
-  font-weight: bold;
+      padding: 16px 32px;
+      font-size: 20px;
+      font-weight: bold;
 
-  border: none;
-  border-radius: 10px;
+      border: none;
+      border-radius: 10px;
 
-  background: white;
-  cursor: pointer;
+      background: white;
+      cursor: pointer;
 
-  box-shadow: 0 4px 12px rgba(0,0,0,.25);
-}
-    
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    #startBtn:disabled {
+      cursor: wait;
+      opacity: 0.8;
+    }
+
     #input {
-  width: 100%;
-  padding: 12px;
-  font-size: 16px;
-  box-sizing: border-box;
-  resize: none;
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      box-sizing: border-box;
+      resize: none;
 
-  background: #F7F7F7;
-  color: #222;
-  border: 1px solid #7f7f7f;
-  border-radius: 0;
-}
+      background: #f7f7f7;
+      color: #222;
+      border: 1px solid #7f7f7f;
+      border-radius: 0;
+    }
 
     #input:disabled {
-  background: #F8F8F8;
-  color: #666;
-  border: 1px solid #d3d3d3;
-  cursor: not-allowed;
+      background: #f8f8f8;
+      color: #666;
+      border: 1px solid #d3d3d3;
+      cursor: not-allowed;
       opacity: 1;
-}
+    }
   </style>
 </head>
 
@@ -87,56 +97,169 @@
     <div class="card">
       <h2>Chat Assistant</h2>
 
-      <video id="avatar" autoplay playsinline muted
-        style="position:absolute; left:-9999px; width:1px; height:1px;">
-      </video>
+      <!--
+        The avatar remains hidden and muted in this condition.
+        Anam still streams to the video element in the background.
+      -->
+      <video
+        id="avatar"
+        autoplay
+        playsinline
+        muted
+        style="
+          position: absolute;
+          left: -9999px;
+          width: 1px;
+          height: 1px;
+        "
+      ></video>
 
-      <div id="status">Click the button to start.</div>
+      <div id="status">
+        Click the button to start.
+      </div>
 
-<div id="chatbox">
-  <button id="startBtn">
-    Start conversation
-  </button>
-</div>
+      <div id="chatbox">
+        <button id="startBtn">
+          Start conversation
+        </button>
+      </div>
 
-     <textarea
-  id="input"
-  placeholder="Type your message here..."
-  rows="4"
-  disabled
-></textarea>
+      <textarea
+        id="input"
+        placeholder="Type your message here..."
+        rows="4"
+        disabled
+      ></textarea>
     </div>
   </div>
 
   <script type="module">
-    import { createClient, AnamEvent } from "https://esm.sh/@anam-ai/js-sdk";
+    import {
+      createClient,
+      AnamEvent
+    } from "https://esm.sh/@anam-ai/js-sdk";
 
-    const CONDITION = "interface_text_input_text";
-const API_BASE_URL =
-  "https://anam-token-server-1.onrender.com";
-    
+    /*
+      CONDITION 1:
+      Text interface + text input
+    */
+    const CONDITION =
+      "interface_text_input_text";
+
+    /*
+      All four GitHub Pages use this same backend.
+    */
+    const API_BASE_URL =
+      "https://anam-token-server-1.onrender.com";
+
     let client = null;
+
     let assistantBuffer = "";
     let assistantRow = null;
     let assistantText = null;
+
     let transcript = [];
-    let participantId = "unknown";
+
+    /*
+      The chatbot asks participants to enter the participant ID
+      they received in Qualtrics.
+
+      Until the first participant response is received, no
+      transcript is saved.
+    */
+    let participantId = null;
     let firstUserMessage = true;
 
-    const statusEl = document.getElementById("status");
-    const chatbox = document.getElementById("chatbox");
-    const inputEl = document.getElementById("input");
-const startBtn = document.getElementById("startBtn");
-    
+    const statusEl =
+      document.getElementById("status");
+
+    const chatbox =
+      document.getElementById("chatbox");
+
+    const inputEl =
+      document.getElementById("input");
+
+    const startBtn =
+      document.getElementById("startBtn");
+
+    const avatar =
+      document.getElementById("avatar");
+
     function setStatus(text) {
       statusEl.textContent = text;
     }
 
+    /*
+      Extract the Qualtrics participant ID from the participant's
+      first response.
+
+      Participants should ideally paste only the ID. This function
+      also handles responses such as:
+
+      "My participant ID is P014"
+    */
+    function extractParticipantId(text) {
+      const trimmedText = String(text).trim();
+
+      if (!trimmedText) {
+        return null;
+      }
+
+      /*
+        Find potential ID-like tokens containing letters, numbers,
+        underscores or hyphens.
+      */
+      const candidates =
+        trimmedText.match(/[A-Za-z0-9_-]+/g);
+
+      if (!candidates || candidates.length === 0) {
+        return null;
+      }
+
+      /*
+        Prefer the final token containing either a number,
+        underscore or hyphen. This supports IDs such as:
+
+        P014
+        participant-014
+        R_ABC123XYZ
+      */
+      const likelyIds = candidates.filter(
+        (candidate) =>
+          /[0-9_-]/.test(candidate)
+      );
+
+      const selectedId =
+        likelyIds.length > 0
+          ? likelyIds[likelyIds.length - 1]
+          : candidates[candidates.length - 1];
+
+      return selectedId
+        .trim()
+        .replace(/[^A-Za-z0-9_-]/g, "")
+        .slice(0, 100);
+    }
+
     function appendUserMessage(text) {
-      const p = document.createElement("p");
-      p.innerHTML = `<b>You:</b> ${text}`;
-      chatbox.appendChild(p);
-      chatbox.scrollTop = chatbox.scrollHeight;
+      const row =
+        document.createElement("p");
+
+      const label =
+        document.createElement("b");
+
+      label.textContent = "You: ";
+
+      const messageText =
+        document.createElement("span");
+
+      messageText.textContent = text;
+
+      row.appendChild(label);
+      row.appendChild(messageText);
+
+      chatbox.appendChild(row);
+      chatbox.scrollTop =
+        chatbox.scrollHeight;
 
       transcript.push({
         role: "user",
@@ -144,28 +267,52 @@ const startBtn = document.getElementById("startBtn");
         timestamp: new Date().toISOString()
       });
 
+      /*
+        The first user message is expected to be the ID requested
+        by the chatbot in its greeting.
+      */
       if (firstUserMessage) {
-        const match = text.match(/P?\d+/i);
-        participantId = match ? match[0] : text.trim();
+        participantId =
+          extractParticipantId(text);
+
         firstUserMessage = false;
-        console.log("Participant ID detected:", participantId);
+
+        if (participantId) {
+          console.log(
+            "Participant ID detected:",
+            participantId
+          );
+        } else {
+          console.warn(
+            "No participant ID could be detected."
+          );
+        }
       }
     }
 
     function beginAssistantMessage() {
-      assistantRow = document.createElement("p");
+      assistantRow =
+        document.createElement("p");
 
-      const label = document.createElement("b");
+      const label =
+        document.createElement("b");
+
       label.textContent = "Assistant: ";
 
-      assistantText = document.createElement("span");
+      assistantText =
+        document.createElement("span");
+
       assistantText.textContent = "";
 
       assistantRow.appendChild(label);
-      assistantRow.appendChild(assistantText);
+      assistantRow.appendChild(
+        assistantText
+      );
 
       chatbox.appendChild(assistantRow);
-      chatbox.scrollTop = chatbox.scrollHeight;
+
+      chatbox.scrollTop =
+        chatbox.scrollHeight;
     }
 
     function updateAssistantMessage(chunk) {
@@ -174,47 +321,86 @@ const startBtn = document.getElementById("startBtn");
       }
 
       assistantBuffer += chunk || "";
-      assistantText.textContent = assistantBuffer;
-      chatbox.scrollTop = chatbox.scrollHeight;
+
+      assistantText.textContent =
+        assistantBuffer;
+
+      chatbox.scrollTop =
+        chatbox.scrollHeight;
     }
 
     async function saveTranscript() {
+      /*
+        Do not store a transcript under "unknown".
+      */
+      if (!participantId) {
+        console.warn(
+          "Transcript not saved because a participant ID has not yet been detected."
+        );
+
+        return;
+      }
+
       try {
         const response = await fetch(
-          "https://anam-token-server-1.onrender.com/api/save-transcript",
+          `${API_BASE_URL}/api/save-transcript`,
           {
             method: "POST",
+
             headers: {
               "Content-Type": "application/json"
             },
+
             body: JSON.stringify({
-              participantId: participantId,
+              participantId,
               condition: CONDITION,
-              transcript: transcript
+              transcript
             })
           }
         );
 
-        const data = await response.json();
+        const data =
+          await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || "Failed to save transcript");
+          throw new Error(
+            data.error ||
+              "Transcript save failed."
+          );
         }
 
-        console.log("Transcript auto-saved:", data);
+        console.log(
+          "Transcript saved:",
+          data
+        );
       } catch (error) {
-        console.error("Auto-save failed:", error);
+        console.error(
+          "Transcript autosave error:",
+          error
+        );
+
+        setStatus(
+          "Connected, but transcript saving failed."
+        );
       }
     }
 
     async function finishAssistantMessage() {
-      if (assistantBuffer.trim()) {
+      const completedMessage =
+        assistantBuffer.trim();
+
+      if (completedMessage) {
         transcript.push({
           role: "assistant",
-          content: assistantBuffer.trim(),
-          timestamp: new Date().toISOString()
+          content: completedMessage,
+          timestamp:
+            new Date().toISOString()
         });
 
+        /*
+          The entire transcript is saved after each complete
+          assistant response.
+        */
         await saveTranscript();
       }
 
@@ -234,138 +420,179 @@ const startBtn = document.getElementById("startBtn");
         setStatus("Creating session...");
 
         const response = await fetch(
-          "https://anam-token-server-1.onrender.com/api/session-token",
-          { method: "POST" }
+          `${API_BASE_URL}/api/session-token`,
+          {
+            method: "POST"
+          }
         );
 
-        const data = await response.json();
+        const data =
+          await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || "Failed to get session token");
+          throw new Error(
+            data.error ||
+              "Failed to get session token."
+          );
         }
 
-        client = createClient(data.sessionToken, {
-          disableInputAudio: true
-        });
+        /*
+          This condition uses typed input, so microphone input
+          is disabled.
+        */
+        client = createClient(
+          data.sessionToken,
+          {
+            disableInputAudio: true
+          }
+        );
 
         client.addListener(
           AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
           async (event) => {
-            if (event.role === "persona") {
-              updateAssistantMessage(event.content);
+            if (event.role !== "persona") {
+              return;
+            }
 
-              if (event.endOfSpeech) {
-                await finishAssistantMessage();
-              }
+            updateAssistantMessage(
+              event.content
+            );
+
+            if (event.endOfSpeech) {
+              await finishAssistantMessage();
             }
           }
         );
 
-        await client.streamToVideoElement("avatar");
+        await client.streamToVideoElement(
+          avatar
+        );
 
-        const avatar = document.getElementById("avatar");
+        /*
+          The participant does not hear the avatar in this
+          text-interface condition.
+        */
         avatar.muted = true;
         avatar.volume = 0;
 
         setStatus("Connected");
       } catch (error) {
-        console.error(error);
-        setStatus("Error: " + error.message);
+        console.error(
+          "Session start error:",
+          error
+        );
+
+        setStatus(
+          "Error: " + error.message
+        );
+
+        throw error;
       }
     }
 
     async function sendMessage() {
       try {
         if (!client) {
-          setStatus("Still connecting...");
+          setStatus(
+            "Still connecting..."
+          );
+
           return;
         }
 
-        const text = inputEl.value.trim();
-        if (!text) return;
+        const text =
+          inputEl.value.trim();
+
+        if (!text) {
+          return;
+        }
 
         appendUserMessage(text);
+
         inputEl.value = "";
 
         resetAssistantMessage();
 
-        await client.sendUserMessage(text);
+        await client.sendUserMessage(
+          text
+        );
       } catch (error) {
-        console.error(error);
-        setStatus("Send error: " + error.message);
+        console.error(
+          "Send-message error:",
+          error
+        );
+
+        setStatus(
+          "Send error: " +
+            error.message
+        );
       }
     }
 
-    async function saveTranscript() {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/save-transcript`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          participantId,
-          condition: CONDITION,
-          studyVersion: STUDY_VERSION,
-          transcript
-        })
+    inputEl.addEventListener(
+      "keydown",
+      (event) => {
+        if (
+          event.key === "Enter" &&
+          !event.shiftKey
+        ) {
+          event.preventDefault();
+
+          sendMessage();
+        }
       }
     );
 
-    const data = await response.json();
+    startBtn.addEventListener(
+      "click",
+      async () => {
+        try {
+          startBtn.disabled = true;
 
-    if (!response.ok) {
-      throw new Error(
-        data.error || "Transcript save failed."
-      );
-    }
+          startBtn.textContent =
+            "Starting...";
 
-    console.log("Transcript saved:", data);
-  } catch (error) {
-    console.error(
-      "Transcript autosave error:",
-      error
-    );
-  }
-}
+          await startSession();
 
-    inputEl.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        sendMessage();
+          startBtn.style.display =
+            "none";
+
+          chatbox.style.background =
+            "white";
+
+          inputEl.disabled = false;
+
+          inputEl.style.background =
+            "white";
+
+          inputEl.style.color =
+            "#222";
+
+          inputEl.focus();
+        } catch (error) {
+          startBtn.disabled = false;
+
+          startBtn.textContent =
+            "Start conversation";
+
+          startBtn.style.display =
+            "block";
+
+          chatbox.style.background =
+            "black";
+
+          inputEl.disabled = true;
+
+          setStatus(
+            "Failed to start session."
+          );
+        }
       }
-    });
+    );
 
-    setStatus("Click the button to start.");
-
-startBtn.addEventListener("click", async () => {
-  try {
-
-    startBtn.style.display = "none";
-
-    chatbox.style.background = "white";
-
-    inputEl.disabled = false;
-    inputEl.style.background = "white";
-    inputEl.style.color = "#222";
-
-    await startSession();
-
-    inputEl.focus();
-
-  } catch (error) {
-
-    console.error(error);
-
-    setStatus("Failed to start session.");
-
-    startBtn.style.display = "block";
-
-    chatbox.style.background = "black";
-  }
-});
+    setStatus(
+      "Click the button to start."
+    );
   </script>
 </body>
 </html>

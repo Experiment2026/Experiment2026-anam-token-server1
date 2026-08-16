@@ -168,12 +168,6 @@
     const finalizedPersonaMessageIds =
       new Set();
 
-    /*
-      Ensures the manual greeting correction can only
-      ever be applied to the first assistant message.
-    */
-    let initialGreetingProcessed = false;
-
     let transcript = [];
 
     /*
@@ -208,8 +202,6 @@
 
     /*
       Clean superficial text-display artefacts only.
-
-      This does not paraphrase or rewrite Sophie's response.
     */
     function cleanDisplayText(text) {
       return String(text || "")
@@ -240,50 +232,26 @@
 
       "Hi there, welcome to FastFlights' help centre..."
 
-      but the text output currently begins:
+      but its text output currently begins:
 
       "there, welcome to FastFlights' help centre..."
 
-      This targeted correction restores the missing "Hi"
-      ONLY for the first assistant greeting.
+      This function repairs that exact known omission.
 
-      No later assistant message can be modified by this
-      function.
+      It is deliberately very narrow:
+      only text beginning with the exact broken greeting
+      is changed.
     */
     function repairInitialGreeting(text) {
       const cleaned =
         String(text || "").trim();
 
-      /*
-        Only inspect the first assistant message.
-      */
-      if (initialGreetingProcessed) {
-        return cleaned;
-      }
-
-      initialGreetingProcessed = true;
-
-      const exactGreeting =
-        "there, welcome to FastFlights' help centre. My name is Sophie and I am here to assist you. Before we get started, could you please provide the participant number that was given to you prior to opening this page?";
-
-      /*
-        Exact match preferred.
-      */
-      if (cleaned === exactGreeting) {
-        return "Hi " + cleaned;
-      }
-
-      /*
-        Slightly more tolerant fallback in case Anam
-        changes whitespace or appends something after
-        the standard greeting.
-      */
-      const expectedStart =
+      const brokenGreetingStart =
         "there, welcome to FastFlights' help centre.";
 
       if (
         cleaned.startsWith(
-          expectedStart
+          brokenGreetingStart
         )
       ) {
         return "Hi " + cleaned;
@@ -301,16 +269,6 @@
         return null;
       }
 
-      /*
-        Supports participant IDs such as:
-
-        P014
-        participant-014
-        R_ABC123XYZ
-
-        It also works if the participant writes:
-        "My participant ID is P014"
-      */
       const candidates =
         trimmedText.match(
           /[A-Za-z0-9_-]+/g
@@ -323,10 +281,6 @@
         return null;
       }
 
-      /*
-        Prefer a token containing a number, underscore,
-        or hyphen because this is more likely to be an ID.
-      */
       const likelyIds =
         candidates.filter(
           (candidate) =>
@@ -369,9 +323,6 @@
 
       messageText.textContent = text;
 
-      /*
-        Preserve intentional line breaks.
-      */
       messageText.style.whiteSpace =
         "pre-wrap";
 
@@ -390,10 +341,6 @@
           new Date().toISOString()
       });
 
-      /*
-        The participant's first response is expected to
-        contain their Qualtrics participant ID.
-      */
       if (firstUserMessage) {
         participantId =
           extractParticipantId(text);
@@ -414,9 +361,6 @@
     }
 
 
-    /*
-      Create a new assistant display row.
-    */
     function beginAssistantMessage(
       messageId = null
     ) {
@@ -434,9 +378,6 @@
 
       assistantText.textContent = "";
 
-      /*
-        Preserve line breaks and numbered lists.
-      */
       assistantText.style.whiteSpace =
         "pre-wrap";
 
@@ -460,14 +401,14 @@
     /*
       Show Anam's real-time streamed transcription.
 
-      This is only the temporary/live display.
-      It is not treated as the authoritative completed
-      assistant response.
+      The greeting repair is applied HERE as well,
+      so participants should immediately see:
+
+      "Hi there..."
+
+      rather than waiting for the finalized history event.
     */
     function updateAssistantMessage(event) {
-      /*
-        Start a new row if necessary.
-      */
       if (
         !assistantRow ||
         !assistantText ||
@@ -485,10 +426,6 @@
         );
       }
 
-      /*
-        Capture the message ID if it becomes available
-        after the row has already been created.
-      */
       if (
         !activePersonaMessageId &&
         event.id
@@ -501,11 +438,17 @@
         event.content || "";
 
       /*
-        Clean only the participant-facing display.
+        Important:
+        repair greeting first, then clean formatting.
       */
+      const repairedStreamText =
+        repairInitialGreeting(
+          assistantBuffer
+        );
+
       assistantText.textContent =
         cleanDisplayText(
-          assistantBuffer
+          repairedStreamText
         );
 
       chatbox.scrollTop =
@@ -513,14 +456,7 @@
     }
 
 
-    /*
-      Save the full research transcript to Render.
-    */
     async function saveTranscript() {
-      /*
-        Do not save until a participant ID
-        has been detected.
-      */
       if (!participantId) {
         console.warn(
           "Transcript not saved because no participant ID has been detected."
@@ -600,9 +536,6 @@
         return;
       }
 
-      /*
-        Do not process the same Anam message twice.
-      */
       if (
         message.id &&
         finalizedPersonaMessageIds.has(
@@ -623,20 +556,14 @@
       );
 
       /*
-        Apply the one-time greeting repair.
-
-        For all later messages this function simply
-        returns the original content unchanged.
+        Apply the same greeting repair to the finalized
+        Anam history version.
       */
       const repairedContent =
         repairInitialGreeting(
           message.content
         );
 
-      /*
-        If the streamed row already exists,
-        replace it with the authoritative final text.
-      */
       if (
         assistantRow &&
         assistantText &&
@@ -652,11 +579,6 @@
             repairedContent
           );
       } else {
-        /*
-          Particularly useful for the initial greeting:
-          if no streamed row exists yet, create one from
-          the finalized message.
-        */
         assistantBuffer = "";
 
         beginAssistantMessage(
@@ -673,13 +595,12 @@
         chatbox.scrollHeight;
 
       /*
-        Save the corrected final message.
+        Save the repaired final content.
 
-        In the greeting this means the stored transcript
-        also contains "Hi there...", matching what Sophie
-        actually says aloud.
+        This means PostgreSQL will also contain:
+        "Hi there..."
 
-        All other assistant responses remain unchanged.
+        which matches what Sophie actually says aloud.
       */
       transcript.push({
         role: "assistant",
@@ -695,14 +616,8 @@
         );
       }
 
-      /*
-        Save after every completed assistant response.
-      */
       await saveTranscript();
 
-      /*
-        Reset the display state ready for the next turn.
-      */
       assistantBuffer = "";
       assistantRow = null;
       assistantText = null;
@@ -718,11 +633,6 @@
     }
 
 
-    /*
-      Process Anam's complete message history.
-
-      Only the newest persona response is relevant.
-    */
     async function handleMessageHistoryUpdated(
       messages
     ) {
@@ -740,9 +650,6 @@
 
       let latestPersonaMessage = null;
 
-      /*
-        Work backwards to find the latest persona message.
-      */
       for (
         let i = messages.length - 1;
         i >= 0;
@@ -763,9 +670,6 @@
         return;
       }
 
-      /*
-        Ignore a persona response already processed.
-      */
       if (
         latestPersonaMessage.id &&
         finalizedPersonaMessageIds.has(
@@ -845,9 +749,6 @@
 
         /*
           REAL-TIME PERSONA TRANSCRIPTION
-
-          Used only for live display while Sophie
-          is speaking.
         */
         client.addListener(
           AnamEvent
@@ -878,12 +779,6 @@
               event
             );
 
-            /*
-              Do not finalize here.
-
-              MESSAGE_HISTORY_UPDATED supplies the
-              completed response.
-            */
             if (event.endOfSpeech) {
               console.log(
                 "Persona stream reports end of speech. Waiting for finalized message history."
@@ -895,9 +790,6 @@
 
         /*
           COMPLETE ANAM MESSAGE HISTORY
-
-          Used as the authoritative completed
-          assistant response.
         */
         client.addListener(
           AnamEvent
@@ -919,17 +811,13 @@
 
 
         /*
-          Start the hidden Anam video stream.
+          Start the hidden Anam stream.
         */
         await client
           .streamToVideoElement(
             "avatar"
           );
 
-        /*
-          Video remains hidden and muted for
-          the text-interface condition.
-        */
         avatar.muted = true;
         avatar.volume = 0;
 
@@ -974,9 +862,6 @@
 
         inputEl.value = "";
 
-        /*
-          Prepare for Sophie's next response.
-        */
         resetAssistantMessage();
 
         await client

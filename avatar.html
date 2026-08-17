@@ -154,6 +154,9 @@
 
     /*
       Exact greeting Sophie says aloud.
+
+      We display this locally because Anam's textual
+      version of the first greeting currently omits "Hi".
     */
     const INITIAL_GREETING =
       "Hi there, welcome to FastFlights' help centre. My name is Sophie and I am here to assist you. Before we get started, could you please provide the participant number that was given to you prior to opening this page?";
@@ -391,10 +394,10 @@
     /*
       Display the known initial greeting progressively.
 
-      It appears in uneven chunks with irregular timing
-      to resemble Anam's normal streamed responses.
+      The text appears in uneven chunks with irregular
+      timing to resemble Anam's normal streamed output.
 
-      This version is slightly slower than before.
+      This version is intentionally somewhat slower.
     */
     async function displayInitialGreeting() {
       beginAssistantMessage();
@@ -406,9 +409,7 @@
         INITIAL_GREETING.length
       ) {
         /*
-          Reveal a random-sized chunk.
-
-          Each update adds approximately
+          Reveal an irregular chunk of approximately
           2 to 10 characters.
         */
         const chunkSize =
@@ -434,16 +435,19 @@
         /*
           Irregular delay between chunks.
 
-          Approximately 60–180 ms.
+          Approximately 90–230 ms.
         */
         let delay =
           Math.floor(
-            Math.random() * 121
-          ) + 60;
+            Math.random() * 141
+          ) + 90;
 
         /*
-          Add a somewhat longer irregular pause
-          when a chunk happens to end on punctuation.
+          If the current chunk happens to end on
+          punctuation, add a longer pause.
+
+          Additional pause:
+          approximately 80–220 ms.
         */
         const lastCharacter =
           INITIAL_GREETING[
@@ -455,21 +459,18 @@
           lastCharacter === "?" ||
           lastCharacter === ","
         ) {
-          /*
-            Additional 60–179 ms pause.
-          */
           delay +=
             Math.floor(
-              Math.random() * 120
-            ) + 60;
+              Math.random() * 141
+            ) + 80;
         }
 
         await wait(delay);
       }
 
       /*
-        Add the complete greeting to the
-        research transcript.
+        Add the complete greeting to the research
+        transcript.
       */
       transcript.push({
         role: "assistant",
@@ -999,9 +1000,8 @@
             "white";
 
           /*
-            Display the exact initial greeting
-            using irregular chunks and slightly
-            slower irregular timing.
+            Display the exact initial greeting using
+            irregular chunks and slower irregular timing.
           */
           await displayInitialGreeting();
 

@@ -158,12 +158,6 @@
     const INITIAL_GREETING =
       "Hi there, welcome to FastFlights' help centre. My name is Sophie and I am here to assist you. Before we get started, could you please provide the participant number that was given to you prior to opening this page?";
 
-    /*
-      Speed of the progressive greeting animation.
-    */
-    const INITIAL_GREETING_CHARACTER_DELAY =
-      18;
-
     let client = null;
 
     /*
@@ -215,6 +209,9 @@
     }
 
 
+    /*
+      Simple delay helper.
+    */
     function wait(milliseconds) {
       return new Promise(
         (resolve) =>
@@ -231,8 +228,19 @@
     */
     function cleanDisplayText(text) {
       return String(text || "")
+        /*
+          Remove Markdown bold markers.
+        */
         .replace(/\*\*(.*?)\*\*/gs, "$1")
+
+        /*
+          Remove spaces before punctuation.
+        */
         .replace(/\s+([.,!?;:])/g, "$1")
+
+        /*
+          Remove spaces before apostrophes.
+        */
         .replace(/\s+(['’])/g, "$1");
     }
 
@@ -382,31 +390,88 @@
 
     /*
       Display the known initial greeting progressively.
+
+      Instead of revealing one character at perfectly
+      regular intervals, it appears in uneven chunks
+      with irregular delays to better resemble Anam's
+      normal streamed responses.
     */
     async function displayInitialGreeting() {
       beginAssistantMessage();
 
-      let displayedText = "";
+      let position = 0;
 
-      for (
-        let i = 0;
-        i < INITIAL_GREETING.length;
-        i++
+      while (
+        position <
+        INITIAL_GREETING.length
       ) {
-        displayedText +=
-          INITIAL_GREETING[i];
+        /*
+          Reveal a random-sized chunk.
+
+          Each update adds roughly 2 to 10 characters.
+        */
+        const chunkSize =
+          Math.floor(
+            Math.random() * 9
+          ) + 2;
+
+        position =
+          Math.min(
+            position + chunkSize,
+            INITIAL_GREETING.length
+          );
 
         assistantText.textContent =
-          displayedText;
+          INITIAL_GREETING.slice(
+            0,
+            position
+          );
 
         chatbox.scrollTop =
           chatbox.scrollHeight;
 
-        await wait(
-          INITIAL_GREETING_CHARACTER_DELAY
-        );
+        /*
+          Add an irregular pause between chunks.
+
+          Range:
+          approximately 30–120 ms.
+        */
+        let delay =
+          Math.floor(
+            Math.random() * 91
+          ) + 30;
+
+        /*
+          Occasionally add a slightly longer pause
+          after punctuation. This makes the output
+          feel a little more like real streamed text.
+        */
+        const lastCharacter =
+          INITIAL_GREETING[
+            position - 1
+          ];
+
+        if (
+          lastCharacter === "." ||
+          lastCharacter === "?" ||
+          lastCharacter === ","
+        ) {
+          delay +=
+            Math.floor(
+              Math.random() * 100
+            ) + 40;
+        }
+
+        await wait(delay);
       }
 
+      /*
+        Add the complete greeting to the research
+        transcript.
+
+        It will be saved once the participant ID
+        is available.
+      */
       transcript.push({
         role: "assistant",
         content:
@@ -422,7 +487,7 @@
 
       /*
         Clear display state only.
-        The row itself remains visible.
+        The greeting remains visible.
       */
       assistantBuffer = "";
       assistantRow = null;
@@ -645,6 +710,9 @@
 
       let latestPersonaMessage = null;
 
+      /*
+        Find the newest persona message.
+      */
       for (
         let i = messages.length - 1;
         i >= 0;
@@ -667,10 +735,10 @@
 
       /*
         First persona message = Anam's imperfect
-        text version of the greeting.
+        textual version of the greeting.
 
-        Ignore it because we display our own
-        correct version.
+        Ignore it because we display the exact
+        greeting ourselves.
       */
       if (
         !initialAnamGreetingCompleted
@@ -829,13 +897,6 @@
         avatar.muted = true;
         avatar.volume = 0;
 
-        /*
-          IMPORTANT:
-          Do NOT display the greeting here.
-
-          It is now displayed only after the chat
-          interface becomes visible.
-        */
         setStatus("Connected");
       } catch (error) {
         console.error(
@@ -929,7 +990,7 @@
           await startSession();
 
           /*
-            NOW reveal the chat area before
+            Reveal the chat interface before
             animating the greeting.
           */
           startBtn.style.display =
@@ -939,14 +1000,14 @@
             "white";
 
           /*
-            Animate the initial greeting while
-            the participant can actually see it.
+            Display the initial greeting using
+            irregular chunks and irregular timing.
           */
           await displayInitialGreeting();
 
           /*
             Only enable participant input once
-            Sophie's greeting has fully appeared.
+            the greeting has fully appeared.
           */
           inputEl.disabled =
             false;

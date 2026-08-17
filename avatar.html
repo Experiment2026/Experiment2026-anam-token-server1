@@ -154,19 +154,12 @@
 
     /*
       Exact greeting Sophie says aloud.
-
-      This is displayed locally because Anam's text
-      events currently omit the initial word "Hi".
     */
     const INITIAL_GREETING =
       "Hi there, welcome to FastFlights' help centre. My name is Sophie and I am here to assist you. Before we get started, could you please provide the participant number that was given to you prior to opening this page?";
 
     /*
-      Controls how quickly the locally displayed greeting
-      appears.
-
-      18 ms per character gives a fairly quick,
-      natural streaming effect.
+      Speed of the progressive greeting animation.
     */
     const INITIAL_GREETING_CHARACTER_DELAY =
       18;
@@ -189,10 +182,7 @@
 
     /*
       The first Anam persona message is the greeting.
-
-      We display that greeting ourselves, so Anam's
-      corresponding text event/history message should
-      not be shown or saved again.
+      We display our own exact version instead.
     */
     let initialAnamGreetingCompleted = false;
 
@@ -225,10 +215,6 @@
     }
 
 
-    /*
-      Simple delay helper for the progressive
-      initial greeting.
-    */
     function wait(milliseconds) {
       return new Promise(
         (resolve) =>
@@ -242,24 +228,11 @@
 
     /*
       Clean superficial text-display artefacts only.
-
-      No rewriting or paraphrasing takes place.
     */
     function cleanDisplayText(text) {
       return String(text || "")
-        /*
-          Remove Markdown bold markers.
-        */
         .replace(/\*\*(.*?)\*\*/gs, "$1")
-
-        /*
-          Remove spaces before punctuation.
-        */
         .replace(/\s+([.,!?;:])/g, "$1")
-
-        /*
-          Remove spaces before apostrophes.
-        */
         .replace(/\s+(['’])/g, "$1");
     }
 
@@ -319,12 +292,15 @@
       const label =
         document.createElement("b");
 
-      label.textContent = "You: ";
+      label.textContent =
+        "You: ";
 
       const messageText =
         document.createElement("span");
 
-      messageText.textContent = text;
+      messageText.textContent =
+        text;
+
       messageText.style.whiteSpace =
         "pre-wrap";
 
@@ -344,8 +320,8 @@
       });
 
       /*
-        The first participant response contains
-        their participant ID.
+        First participant response is expected
+        to contain their participant ID.
       */
       if (firstUserMessage) {
         participantId =
@@ -383,6 +359,7 @@
         document.createElement("span");
 
       assistantText.textContent = "";
+
       assistantText.style.whiteSpace =
         "pre-wrap";
 
@@ -404,24 +381,13 @@
 
 
     /*
-      Display the exact initial greeting progressively.
-
-      The greeting itself is fixed and matches what
-      Sophie says aloud, but it visually appears in the
-      same gradual manner as subsequent responses.
+      Display the known initial greeting progressively.
     */
     async function displayInitialGreeting() {
-      /*
-        Use the same assistant row structure used
-        for normal Anam responses.
-      */
       beginAssistantMessage();
 
       let displayedText = "";
 
-      /*
-        Reveal the greeting character by character.
-      */
       for (
         let i = 0;
         i < INITIAL_GREETING.length;
@@ -441,16 +407,10 @@
         );
       }
 
-      /*
-        Add the complete greeting to the research
-        transcript.
-
-        It cannot be saved to Render yet because the
-        participant has not entered their ID.
-      */
       transcript.push({
         role: "assistant",
-        content: INITIAL_GREETING,
+        content:
+          INITIAL_GREETING,
         timestamp:
           new Date().toISOString()
       });
@@ -461,10 +421,8 @@
       );
 
       /*
-        Clear the temporary display references.
-
-        The completed greeting itself remains visible
-        in the chatbox.
+        Clear display state only.
+        The row itself remains visible.
       */
       assistantBuffer = "";
       assistantRow = null;
@@ -474,10 +432,7 @@
 
 
     /*
-      Show normal Anam persona responses progressively.
-
-      The initial greeting never reaches this function
-      because it is handled separately.
+      Show normal Anam responses progressively.
     */
     function updateAssistantMessage(event) {
       if (
@@ -519,10 +474,6 @@
 
 
     async function saveTranscript() {
-      /*
-        Do not save until the participant ID
-        has been detected.
-      */
       if (!participantId) {
         console.warn(
           "Transcript not saved because no participant ID has been detected."
@@ -589,7 +540,7 @@
 
     /*
       Finalize normal assistant messages from
-      Anam's authoritative history.
+      Anam's complete message history.
     */
     async function finalizeAssistantFromHistory(
       message
@@ -611,25 +562,11 @@
         return;
       }
 
-      console.log(
-        "FINAL PERSONA MESSAGE FROM HISTORY:",
-        {
-          id: message.id,
-          content: message.content,
-          interrupted:
-            message.interrupted
-        }
-      );
-
       const finalContent =
         String(
           message.content
         ).trim();
 
-      /*
-        Replace the streamed transcription with
-        Anam's finalized message.
-      */
       if (
         assistantRow &&
         assistantText &&
@@ -660,9 +597,6 @@
       chatbox.scrollTop =
         chatbox.scrollHeight;
 
-      /*
-        Store Anam's finalized response.
-      */
       transcript.push({
         role: "assistant",
         content:
@@ -694,9 +628,6 @@
     }
 
 
-    /*
-      Process Anam's complete message history.
-    */
     async function handleMessageHistoryUpdated(
       messages
     ) {
@@ -714,9 +645,6 @@
 
       let latestPersonaMessage = null;
 
-      /*
-        Find the newest persona message.
-      */
       for (
         let i = messages.length - 1;
         i >= 0;
@@ -738,15 +666,15 @@
       }
 
       /*
-        FIRST PERSONA MESSAGE = INITIAL GREETING.
+        First persona message = Anam's imperfect
+        text version of the greeting.
 
-        We already display the correct greeting locally,
-        so do not display or store Anam's broken textual
-        version.
-
-        We only mark its Anam message ID as finalized.
+        Ignore it because we display our own
+        correct version.
       */
-      if (!initialAnamGreetingCompleted) {
+      if (
+        !initialAnamGreetingCompleted
+      ) {
         initialAnamGreetingCompleted =
           true;
 
@@ -759,15 +687,12 @@
         }
 
         console.log(
-          "Initial Anam greeting ignored. Local exact greeting remains displayed."
+          "Initial Anam greeting ignored."
         );
 
         return;
       }
 
-      /*
-        Ignore messages already finalized.
-      */
       if (
         latestPersonaMessage.id &&
         finalizedPersonaMessageIds.has(
@@ -809,11 +734,6 @@
         }
 
         if (!response.ok) {
-          console.error(
-            "Session-token response:",
-            data
-          );
-
           throw new Error(
             data.error ||
             data.message ||
@@ -822,11 +742,6 @@
         }
 
         if (!data.sessionToken) {
-          console.error(
-            "Session-token data:",
-            data
-          );
-
           throw new Error(
             "No session token was returned by the backend."
           );
@@ -834,7 +749,7 @@
 
         /*
           Text-input condition:
-          microphone input is disabled.
+          microphone input disabled.
         */
         client = createClient(
           data.sessionToken,
@@ -855,15 +770,7 @@
           (event) => {
             console.log(
               "ANAM STREAM EVENT:",
-              {
-                id: event.id,
-                role: event.role,
-                content: event.content,
-                endOfSpeech:
-                  event.endOfSpeech,
-                interrupted:
-                  event.interrupted
-              }
+              event
             );
 
             if (
@@ -874,18 +781,11 @@
             }
 
             /*
-              Ignore all streamed text belonging to
-              the initial Anam greeting.
-
-              The exact greeting is displayed locally.
+              Ignore the initial Anam greeting stream.
             */
             if (
               !initialAnamGreetingCompleted
             ) {
-              console.log(
-                "Ignoring initial Anam greeting stream."
-              );
-
               return;
             }
 
@@ -930,12 +830,12 @@
         avatar.volume = 0;
 
         /*
-          Display the exact known greeting ourselves,
-          but reveal it progressively so that it
-          visually resembles subsequent Anam responses.
-        */
-        await displayInitialGreeting();
+          IMPORTANT:
+          Do NOT display the greeting here.
 
+          It is now displayed only after the chat
+          interface becomes visible.
+        */
         setStatus("Connected");
       } catch (error) {
         console.error(
@@ -1023,14 +923,31 @@
           startBtn.textContent =
             "Starting...";
 
+          /*
+            Connect to Anam first.
+          */
           await startSession();
 
+          /*
+            NOW reveal the chat area before
+            animating the greeting.
+          */
           startBtn.style.display =
             "none";
 
           chatbox.style.background =
             "white";
 
+          /*
+            Animate the initial greeting while
+            the participant can actually see it.
+          */
+          await displayInitialGreeting();
+
+          /*
+            Only enable participant input once
+            Sophie's greeting has fully appeared.
+          */
           inputEl.disabled =
             false;
 
@@ -1041,6 +958,7 @@
             "#222";
 
           inputEl.focus();
+
         } catch (error) {
           console.error(
             "Full start-session error:",

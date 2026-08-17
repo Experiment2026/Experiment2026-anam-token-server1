@@ -161,6 +161,16 @@
     const INITIAL_GREETING =
       "Hi there, welcome to FastFlights' help centre. My name is Sophie and I am here to assist you. Before we get started, could you please provide the participant number that was given to you prior to opening this page?";
 
+    /*
+      Controls how quickly the locally displayed greeting
+      appears.
+
+      18 ms per character gives a fairly quick,
+      natural streaming effect.
+    */
+    const INITIAL_GREETING_CHARACTER_DELAY =
+      18;
+
     let client = null;
 
     /*
@@ -216,6 +226,21 @@
 
 
     /*
+      Simple delay helper for the progressive
+      initial greeting.
+    */
+    function wait(milliseconds) {
+      return new Promise(
+        (resolve) =>
+          setTimeout(
+            resolve,
+            milliseconds
+          )
+      );
+    }
+
+
+    /*
       Clean superficial text-display artefacts only.
 
       No rewriting or paraphrasing takes place.
@@ -236,59 +261,6 @@
           Remove spaces before apostrophes.
         */
         .replace(/\s+(['’])/g, "$1");
-    }
-
-
-    /*
-      Display the exact initial greeting locally.
-
-      This avoids relying on Anam's first text event,
-      which currently drops "Hi".
-    */
-    function displayInitialGreeting() {
-      const row =
-        document.createElement("p");
-
-      const label =
-        document.createElement("b");
-
-      label.textContent =
-        "Assistant: ";
-
-      const messageText =
-        document.createElement("span");
-
-      messageText.textContent =
-        INITIAL_GREETING;
-
-      messageText.style.whiteSpace =
-        "pre-wrap";
-
-      row.appendChild(label);
-      row.appendChild(messageText);
-
-      chatbox.appendChild(row);
-
-      chatbox.scrollTop =
-        chatbox.scrollHeight;
-
-      /*
-        Add the greeting to the research transcript.
-
-        It cannot be saved to Render yet because the
-        participant has not entered their ID.
-      */
-      transcript.push({
-        role: "assistant",
-        content: INITIAL_GREETING,
-        timestamp:
-          new Date().toISOString()
-      });
-
-      console.log(
-        "Initial greeting displayed locally:",
-        INITIAL_GREETING
-      );
     }
 
 
@@ -432,10 +404,80 @@
 
 
     /*
+      Display the exact initial greeting progressively.
+
+      The greeting itself is fixed and matches what
+      Sophie says aloud, but it visually appears in the
+      same gradual manner as subsequent responses.
+    */
+    async function displayInitialGreeting() {
+      /*
+        Use the same assistant row structure used
+        for normal Anam responses.
+      */
+      beginAssistantMessage();
+
+      let displayedText = "";
+
+      /*
+        Reveal the greeting character by character.
+      */
+      for (
+        let i = 0;
+        i < INITIAL_GREETING.length;
+        i++
+      ) {
+        displayedText +=
+          INITIAL_GREETING[i];
+
+        assistantText.textContent =
+          displayedText;
+
+        chatbox.scrollTop =
+          chatbox.scrollHeight;
+
+        await wait(
+          INITIAL_GREETING_CHARACTER_DELAY
+        );
+      }
+
+      /*
+        Add the complete greeting to the research
+        transcript.
+
+        It cannot be saved to Render yet because the
+        participant has not entered their ID.
+      */
+      transcript.push({
+        role: "assistant",
+        content: INITIAL_GREETING,
+        timestamp:
+          new Date().toISOString()
+      });
+
+      console.log(
+        "Initial greeting displayed progressively:",
+        INITIAL_GREETING
+      );
+
+      /*
+        Clear the temporary display references.
+
+        The completed greeting itself remains visible
+        in the chatbox.
+      */
+      assistantBuffer = "";
+      assistantRow = null;
+      assistantText = null;
+      activePersonaMessageId = null;
+    }
+
+
+    /*
       Show normal Anam persona responses progressively.
 
       The initial greeting never reaches this function
-      because it is ignored separately.
+      because it is handled separately.
     */
     function updateAssistantMessage(event) {
       if (
@@ -698,7 +740,7 @@
       /*
         FIRST PERSONA MESSAGE = INITIAL GREETING.
 
-        We already displayed the correct greeting locally,
+        We already display the correct greeting locally,
         so do not display or store Anam's broken textual
         version.
 
@@ -832,7 +874,7 @@
             }
 
             /*
-              Ignore ALL streamed text belonging to
+              Ignore all streamed text belonging to
               the initial Anam greeting.
 
               The exact greeting is displayed locally.
@@ -888,12 +930,11 @@
         avatar.volume = 0;
 
         /*
-          Display the exact known greeting ourselves.
-
-          This occurs immediately after the Anam stream
-          has successfully started.
+          Display the exact known greeting ourselves,
+          but reveal it progressively so that it
+          visually resembles subsequent Anam responses.
         */
-        displayInitialGreeting();
+        await displayInitialGreeting();
 
         setStatus("Connected");
       } catch (error) {

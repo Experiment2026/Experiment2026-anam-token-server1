@@ -391,10 +391,10 @@
     /*
       Display the known initial greeting progressively.
 
-      Instead of revealing one character at perfectly
-      regular intervals, it appears in uneven chunks
-      with irregular delays to better resemble Anam's
-      normal streamed responses.
+      It appears in uneven chunks with irregular timing
+      to resemble Anam's normal streamed responses.
+
+      This version is slightly slower than before.
     */
     async function displayInitialGreeting() {
       beginAssistantMessage();
@@ -408,7 +408,8 @@
         /*
           Reveal a random-sized chunk.
 
-          Each update adds roughly 2 to 10 characters.
+          Each update adds approximately
+          2 to 10 characters.
         */
         const chunkSize =
           Math.floor(
@@ -431,20 +432,18 @@
           chatbox.scrollHeight;
 
         /*
-          Add an irregular pause between chunks.
+          Irregular delay between chunks.
 
-          Range:
-          approximately 30–120 ms.
+          Approximately 60–180 ms.
         */
         let delay =
           Math.floor(
-            Math.random() * 91
-          ) + 30;
+            Math.random() * 121
+          ) + 60;
 
         /*
-          Occasionally add a slightly longer pause
-          after punctuation. This makes the output
-          feel a little more like real streamed text.
+          Add a somewhat longer irregular pause
+          when a chunk happens to end on punctuation.
         */
         const lastCharacter =
           INITIAL_GREETING[
@@ -456,21 +455,21 @@
           lastCharacter === "?" ||
           lastCharacter === ","
         ) {
+          /*
+            Additional 60–179 ms pause.
+          */
           delay +=
             Math.floor(
-              Math.random() * 100
-            ) + 40;
+              Math.random() * 120
+            ) + 60;
         }
 
         await wait(delay);
       }
 
       /*
-        Add the complete greeting to the research
-        transcript.
-
-        It will be saved once the participant ID
-        is available.
+        Add the complete greeting to the
+        research transcript.
       */
       transcript.push({
         role: "assistant",
@@ -487,7 +486,7 @@
 
       /*
         Clear display state only.
-        The greeting remains visible.
+        The greeting itself remains visible.
       */
       assistantBuffer = "";
       assistantRow = null;
@@ -991,7 +990,7 @@
 
           /*
             Reveal the chat interface before
-            animating the greeting.
+            displaying the greeting.
           */
           startBtn.style.display =
             "none";
@@ -1000,13 +999,14 @@
             "white";
 
           /*
-            Display the initial greeting using
-            irregular chunks and irregular timing.
+            Display the exact initial greeting
+            using irregular chunks and slightly
+            slower irregular timing.
           */
           await displayInitialGreeting();
 
           /*
-            Only enable participant input once
+            Enable participant input only after
             the greeting has fully appeared.
           */
           inputEl.disabled =

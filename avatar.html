@@ -172,6 +172,7 @@
     </div>
   </div>
 
+
   <script type="module">
 
     import {
@@ -203,6 +204,14 @@
     */
     const INITIAL_GREETING =
       "Hi there, welcome to FastFlights' help centre. My name is Sophie and I am here to assist you. Before we get started, could you please provide the participant number that was given to you prior to opening this page?";
+
+
+    /*
+      Finish button becomes available five minutes
+      after the conversation has successfully started.
+    */
+    const FINISH_BUTTON_DELAY =
+      5 * 60 * 1000;
 
 
     let client = null;
@@ -244,6 +253,12 @@
     let participantId = null;
 
     let firstUserMessage = true;
+
+
+    /*
+      Finish-button timer.
+    */
+    let finishButtonTimer = null;
 
 
     /*
@@ -1522,6 +1537,36 @@
 
 
           /*
+            Start the five-minute countdown
+            once the conversation has successfully
+            connected.
+
+            The Finish button remains visible
+            but disabled during this period.
+          */
+          finishBtn.disabled =
+            true;
+
+
+          finishButtonTimer =
+            setTimeout(
+              () => {
+
+                finishBtn.disabled =
+                  false;
+
+
+                console.log(
+                  "Finish button enabled after five minutes."
+                );
+
+              },
+
+              FINISH_BUTTON_DELAY
+            );
+
+
+          /*
             Display exact initial greeting
             progressively.
           */
@@ -1548,15 +1593,10 @@
 
 
           /*
-            Conversation has successfully
-            started, so enable Finish.
-          */
-          finishBtn.disabled =
-            false;
-
-
-          /*
             Keep Connected bold.
+
+            Do NOT enable Finish here:
+            the five-minute timer controls that.
           */
           setConnectedStatus();
 
@@ -1569,6 +1609,25 @@
             "Full start-session error:",
             error
           );
+
+
+          /*
+            Cancel timer if startup somehow
+            fails after it has been created.
+          */
+          if (
+            finishButtonTimer
+          ) {
+
+            clearTimeout(
+              finishButtonTimer
+            );
+
+
+            finishButtonTimer =
+              null;
+
+          }
 
 
           startBtn.disabled =
@@ -1680,6 +1739,11 @@
           );
 
 
+          /*
+            At this point the five-minute
+            requirement has already elapsed,
+            so re-enable the button if saving fails.
+          */
           finishBtn.disabled =
             false;
 
